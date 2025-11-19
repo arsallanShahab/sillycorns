@@ -61,22 +61,22 @@ const nextConfig: NextConfig = {
   },
 
   // Redirects for SEO
-  redirects: async () => {
-    return [
-      // Redirect www to non-www
-      {
-        source: "/:path*",
-        has: [
-          {
-            type: "host",
-            value: "www.sillycorns.com",
-          },
-        ],
-        destination: "https://sillycorns.com/:path*",
-        permanent: true,
-      },
-    ];
-  },
+  // redirects: async () => {
+  //   return [
+  //     // Redirect www to non-www
+  //     {
+  //       source: "/:path*",
+  //       has: [
+  //         {
+  //           type: "host",
+  //           value: "www.sillycorns.com",
+  //         },
+  //       ],
+  //       destination: "https://sillycorns.com/:path*",
+  //       permanent: true,
+  //     },
+  //   ];
+  // },
 };
 
 export default nextConfig;
