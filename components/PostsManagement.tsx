@@ -62,8 +62,8 @@ export function PostsManagement({
   };
 
   const handleCreatePost = async () => {
-    if (!title || !imageFile || !yt_url || !product_url) {
-      alert("Please fill all fields including selecting an image");
+    if (!title || !imageFile || !product_url) {
+      alert("Please fill required fields: title, image, and product URL");
       return;
     }
 

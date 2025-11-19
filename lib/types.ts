@@ -2,7 +2,7 @@ export interface Post {
   id: string;
   title: string;
   image: string;
-  yt_url: string;
+  yt_url?: string;
   product_url: string;
   active: boolean;
   createdAt: string;

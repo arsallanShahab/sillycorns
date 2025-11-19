@@ -32,9 +32,9 @@ export async function POST(request: NextRequest) {
       const product_url = formData.get("product_url") as string;
       const imageFile = formData.get("image") as File;
 
-      if (!title || !yt_url || !product_url) {
+      if (!title || !product_url) {
         return NextResponse.json(
-          { error: "Missing required fields" },
+          { error: "Missing required fields: title and product_url" },
           { status: 400 }
         );
       }
@@ -59,9 +59,9 @@ export async function POST(request: NextRequest) {
       const body = await request.json();
       const { title, image, yt_url, product_url } = body;
 
-      if (!title || !image || !yt_url || !product_url) {
+      if (!title || !image || !product_url) {
         return NextResponse.json(
-          { error: "Missing required fields" },
+          { error: "Missing required fields: title, image, and product_url" },
           { status: 400 }
         );
       }
