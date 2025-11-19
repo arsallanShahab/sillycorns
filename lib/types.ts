@@ -6,6 +6,7 @@ export interface Post {
   product_url: string;
   active: boolean;
   createdAt: string;
+  order: number;
 }
 
 export interface PostsData {

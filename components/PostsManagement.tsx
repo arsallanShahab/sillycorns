@@ -6,7 +6,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
-import { Trash2, CheckCircle2, Circle, Upload, X } from "lucide-react";
+import {
+  Trash2,
+  CheckCircle2,
+  Circle,
+  Upload,
+  X,
+  GripVertical,
+} from "lucide-react";
 import Image from "next/image";
 
 interface PostsManagementProps {
@@ -26,6 +33,7 @@ export function PostsManagement({
   const [yt_url, setYtUrl] = useState("");
   const [product_url, setProductUrl] = useState("");
   const [loading, setLoading] = useState(false);
+  const [draggedItem, setDraggedItem] = useState<string | null>(null);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -123,6 +131,56 @@ export function PostsManagement({
       }
     } catch {
       alert("Failed to delete post");
+    }
+  };
+
+  const handleDragStart = (e: React.DragEvent, postId: string) => {
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("postId", postId);
+    setDraggedItem(postId);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+  };
+
+  const handleDrop = async (e: React.DragEvent, targetPostId: string) => {
+    e.preventDefault();
+    const sourcePostId = e.dataTransfer.getData("postId");
+
+    if (sourcePostId === targetPostId) return;
+
+    // Find indices
+    const sourceIndex = posts.findIndex((p) => p.id === sourcePostId);
+    const targetIndex = posts.findIndex((p) => p.id === targetPostId);
+
+    if (sourceIndex === -1 || targetIndex === -1) return;
+
+    // Reorder locally
+    const newPosts = [...posts];
+    const [movedPost] = newPosts.splice(sourceIndex, 1);
+    newPosts.splice(targetIndex, 0, movedPost);
+
+    setPosts(newPosts);
+    setDraggedItem(null);
+
+    // Send reorder to server
+    try {
+      const response = await fetch("/api/posts/reorder", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ postIds: newPosts.map((p) => p.id) }),
+      });
+
+      if (!response.ok) {
+        alert("Failed to save reorder");
+        // Revert to original
+        setPosts(initialPosts);
+      }
+    } catch {
+      alert("Failed to save reorder");
+      setPosts(initialPosts);
     }
   };
 
@@ -237,13 +295,24 @@ export function PostsManagement({
             posts.map((post) => (
               <Card
                 key={post.id}
-                className="p-4 flex items-start justify-between gap-4"
+                draggable
+                onDragStart={(e) => handleDragStart(e, post.id)}
+                onDragOver={handleDragOver}
+                onDrop={(e) => handleDrop(e, post.id)}
+                className={`p-4 flex items-start justify-between gap-4 cursor-move transition-all ${
+                  draggedItem === post.id
+                    ? "opacity-50 border-2 border-blue-500"
+                    : "hover:border-2 hover:border-gray-300"
+                }`}
               >
-                <div className="flex-1 min-w-0">
-                  <h4 className="font-medium truncate">{post.title}</h4>
-                  <p className="text-sm text-gray-600 truncate">
-                    {post.yt_url}
-                  </p>
+                <div className="flex-1 min-w-0 flex items-center gap-3">
+                  <GripVertical className="w-5 h-5 text-gray-400 shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <h4 className="font-medium truncate">{post.title}</h4>
+                    <p className="text-sm text-gray-600 truncate">
+                      {post.yt_url}
+                    </p>
+                  </div>
                 </div>
                 <div className="flex gap-2 shrink-0">
                   <button

@@ -68,7 +68,7 @@ export async function getActivePostsCount(): Promise<number> {
 
 // Create a new post
 export async function createPost(
-  postData: Omit<Post, "id" | "createdAt" | "active">
+  postData: Omit<Post, "id" | "createdAt" | "active" | "order">
 ): Promise<Post> {
   await initializePostsFile();
   const posts = await getPosts();
@@ -77,6 +77,7 @@ export async function createPost(
     id: Date.now().toString(),
     active: true,
     createdAt: new Date().toISOString(),
+    order: posts.length,
   };
   posts.push(newPost);
   await savePostsData(posts);
@@ -250,4 +251,39 @@ export async function saveBackupFile(
   await fs.writeFile(backupPath, content);
 
   return backupName;
+}
+
+// Reorder posts
+export async function reorderPosts(postIds: string[]): Promise<boolean> {
+  try {
+    const posts = await getPosts();
+
+    // Create a map of posts by id
+    const postMap = new Map(posts.map((p) => [p.id, p]));
+
+    // Reorder based on the provided ids
+    const reorderedPosts = postIds
+      .map((id) => postMap.get(id))
+      .filter((post) => post !== undefined) as Post[];
+
+    // Update order field for each post
+    reorderedPosts.forEach((post, index) => {
+      post.order = index;
+    });
+
+    // Add any posts that weren't in the reorder list (shouldn't happen, but be safe)
+    const reorderedIds = new Set(postIds);
+    posts.forEach((post) => {
+      if (!reorderedIds.has(post.id) && !reorderedPosts.includes(post)) {
+        post.order = reorderedPosts.length;
+        reorderedPosts.push(post);
+      }
+    });
+
+    await savePostsData(reorderedPosts);
+    return true;
+  } catch {
+    console.error("Error reordering posts");
+    return false;
+  }
 }
