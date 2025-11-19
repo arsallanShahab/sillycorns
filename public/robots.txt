@@ -1,0 +1,29 @@
+# Robots.txt for Sillycorns - SEO Configuration
+
+# Default rules for all bots
+User-agent: *
+Allow: /
+Disallow: /dashboard
+Disallow: /dashboard/login
+Disallow: /api/
+Allow: /api/posts/published
+
+# Specific rules for Google
+User-agent: Googlebot
+Allow: /
+Disallow: /dashboard
+Disallow: /dashboard/login
+Disallow: /api/
+
+# Specific rules for Bing
+User-agent: Bingbot
+Allow: /
+Disallow: /dashboard
+Disallow: /dashboard/login
+Disallow: /api/
+
+# Sitemap location
+Sitemap: https://sillycorns.vercel.app/sitemap.xml
+
+# Crawl delay
+Crawl-delay: 1
