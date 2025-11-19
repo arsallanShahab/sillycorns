@@ -1,7 +1,7 @@
 import { MetadataRoute } from "next";
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl = "https://sillycorns.vercel.app";
+  const baseUrl = "https://sillycorn.vercel.app";
 
   // Main pages that should be indexed
   const pages = [

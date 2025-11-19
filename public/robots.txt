@@ -23,7 +23,7 @@ Disallow: /dashboard/login
 Disallow: /api/
 
 # Sitemap location
-Sitemap: https://sillycorns.vercel.app/sitemap.xml
+Sitemap: https://sillycorn.vercel.app/sitemap.xml
 
 # Crawl delay
 Crawl-delay: 1

@@ -20,9 +20,9 @@ export const metadata: Metadata = {
   authors: [{ name: "Sillycorns Media" }],
   creator: "Sillycorns Media",
   publisher: "Sillycorns Media",
-  metadataBase: new URL("https://sillycorns.vercel.app"),
+  metadataBase: new URL("https://sillycorn.vercel.app"),
   alternates: {
-    canonical: "https://sillycorns.vercel.app",
+    canonical: "https://sillycorn.vercel.app",
   },
   manifest: "/manifest.json",
   icons: {
@@ -32,14 +32,14 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "en_US",
-    url: "https://sillycorns.vercel.app",
+    url: "https://sillycorn.vercel.app",
     siteName: "Sillycorns",
     title: "Sillycorns - Best Gadgets & Tech Products Reviews",
     description:
       "Discover the best gadgets, tech products, and reviews on Sillycorns. Curated links and recommendations for tech enthusiasts.",
     images: [
       {
-        url: "https://sillycorns.vercel.app/og-image.jpeg",
+        url: "https://sillycorn.vercel.app/og-image.jpeg",
         width: 1200,
         height: 630,
         alt: "Sillycorns - Gadgets & Tech Reviews",
@@ -52,7 +52,7 @@ export const metadata: Metadata = {
     title: "Sillycorns - Best Gadgets & Tech Products",
     description: "Discover the best gadgets and tech products with Sillycorns",
     creator: "@Sillycorns",
-    images: ["https://sillycorns.vercel.app/og-image.jpeg"],
+    images: ["https://sillycorn.vercel.app/og-image.jpeg"],
   },
   robots: {
     index: true,

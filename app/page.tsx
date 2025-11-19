@@ -17,10 +17,10 @@ export const metadata: Metadata = {
     title: "Sillycorns - Best Gadgets & Tech Products",
     description: "Discover the latest and greatest gadgets and tech products",
     type: "website",
-    url: "https://sillycorns.vercel.app",
+    url: "https://sillycorn.vercel.app",
     images: [
       {
-        url: "https://sillycorns.vercel.app/og-image.jpeg",
+        url: "https://sillycorn.vercel.app/og-image.jpeg",
         width: 1200,
         height: 630,
         alt: "Sillycorns - Gadgets & Tech Reviews",
@@ -34,7 +34,7 @@ export default function Home() {
     "@context": "https://schema.org",
     "@type": "WebSite",
     name: "Sillycorns",
-    url: "https://sillycorns.vercel.app",
+    url: "https://sillycorn.vercel.app",
     description: "Best gadgets and tech products reviews and recommendations",
     publisher: {
       "@type": "Organization",
@@ -49,8 +49,7 @@ export default function Home() {
       "@type": "SearchAction",
       target: {
         "@type": "EntryPoint",
-        urlTemplate:
-          "https://sillycorns.vercel.app?search={search_term_string}",
+        urlTemplate: "https://sillycorn.vercel.app?search={search_term_string}",
       },
       "query-input": "required name=search_term_string",
     },

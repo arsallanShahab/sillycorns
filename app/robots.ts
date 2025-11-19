@@ -19,6 +19,6 @@ export default function robots(): MetadataRoute.Robots {
         disallow: ["/dashboard", "/dashboard/login", "/api"],
       },
     ],
-    sitemap: "https://sillycorns.vercel.app/sitemap.xml",
+    sitemap: "https://sillycorn.vercel.app/sitemap.xml",
   };
 }
