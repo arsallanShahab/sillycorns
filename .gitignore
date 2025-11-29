@@ -42,3 +42,4 @@ next-env.d.ts
 
 # data files (posts and backups)
 /data/
+/_ignore/
