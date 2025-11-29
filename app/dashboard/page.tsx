@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Post } from "@/lib/types";
 import { useAuth } from "@/lib/auth-context";
 import { PostsManagement } from "@/components/PostsManagement";
 import { BackupManagement } from "@/components/BackupManagement";
@@ -22,7 +21,6 @@ import {
 export default function Dashboard() {
   const router = useRouter();
   const { logout, isAuthenticated, isLoading } = useAuth();
-  const [posts, setPosts] = useState<Post[]>([]);
   const [stats, setStats] = useState({
     total: 0,
     active: 0,
@@ -30,36 +28,26 @@ export default function Dashboard() {
   });
   const [dashboardLoading, setDashboardLoading] = useState(true);
 
-  const loadPosts = useCallback(async () => {
+  const loadStats = useCallback(async () => {
     try {
-      const response = await fetch("/api/posts");
+      const response = await fetch("/api/posts/stats");
       if (response.ok) {
         const data = await response.json();
-        setPosts(data);
-        calculateStats(data);
+        setStats(data);
       }
     } catch {
-      console.error("Failed to load posts");
+      console.error("Failed to load stats");
     } finally {
       setDashboardLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    loadPosts();
-  }, [loadPosts]);
-
-  const calculateStats = (postsData: Post[]) => {
-    const active = postsData.filter((p) => p.active).length;
-    setStats({
-      total: postsData.length,
-      active,
-      inactive: postsData.length - active,
-    });
-  };
+    loadStats();
+  }, [loadStats]);
 
   const handlePostsChange = () => {
-    loadPosts();
+    loadStats();
   };
 
   const handleLogout = () => {
@@ -174,7 +162,7 @@ export default function Dashboard() {
 
           <TabsContent value="posts" className="space-y-6">
             <PostsManagement
-              initialPosts={posts}
+              initialPosts={[]}
               onPostsChange={handlePostsChange}
             />
           </TabsContent>

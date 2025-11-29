@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Search, X } from "lucide-react";
 import Image from "next/image";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface SearchResult {
   id: string;
@@ -16,19 +17,22 @@ export function SearchBar() {
   const [results, setResults] = useState<SearchResult[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [highlightedIndex, setHighlightedIndex] = useState(-1);
-  const searchRef = useRef<HTMLDivElement>(null);
+  const [selectedIndex, setSelectedIndex] = useState(-1);
+  const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Debounced search
   useEffect(() => {
+    if (query.length === 0) {
+      setResults([]);
+      setIsOpen(false);
+      setSelectedIndex(-1);
+      return;
+    }
+
     const timer = setTimeout(() => {
-      if (query.length > 0) {
-        searchPosts(query);
-      } else {
-        setResults([]);
-        setIsOpen(false);
-      }
+      searchPosts(query);
     }, 300);
 
     return () => clearTimeout(timer);
@@ -43,74 +47,85 @@ export function SearchBar() {
       if (response.ok) {
         const data = await response.json();
         setResults(data);
-        setIsOpen(data.length > 0);
-        setHighlightedIndex(-1);
+        setIsOpen(true);
+        setSelectedIndex(-1);
       }
-    } catch {
-      console.error("Search failed");
+    } catch (error) {
+      console.error("Search failed:", error);
+      setResults([]);
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleSelectResult = (result: SearchResult) => {
-    // Open product URL in new tab
     if (result.product_url) {
-      window.open(result.product_url, "_blank");
+      window.open(result.product_url, "_blank", "noopener,noreferrer");
     }
-    // Clear search
     setQuery("");
     setIsOpen(false);
     setResults([]);
+    setSelectedIndex(-1);
+  };
+
+  const handleClear = () => {
+    setQuery("");
+    setResults([]);
+    setIsOpen(false);
+    setSelectedIndex(-1);
+    inputRef.current?.focus();
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (!isOpen) return;
+    if (!isOpen || results.length === 0) return;
 
     switch (e.key) {
       case "ArrowDown":
         e.preventDefault();
-        setHighlightedIndex((prev) =>
-          prev < results.length - 1 ? prev + 1 : prev
-        );
+        setSelectedIndex((prev) => (prev < results.length - 1 ? prev + 1 : 0));
         break;
       case "ArrowUp":
         e.preventDefault();
-        setHighlightedIndex((prev) => (prev > 0 ? prev - 1 : -1));
+        setSelectedIndex((prev) => (prev > 0 ? prev - 1 : results.length - 1));
         break;
       case "Enter":
         e.preventDefault();
-        if (highlightedIndex >= 0) {
-          handleSelectResult(results[highlightedIndex]);
+        if (selectedIndex >= 0 && results[selectedIndex]) {
+          handleSelectResult(results[selectedIndex]);
         }
         break;
       case "Escape":
+        e.preventDefault();
         setIsOpen(false);
-        setHighlightedIndex(-1);
+        setSelectedIndex(-1);
+        inputRef.current?.blur();
         break;
     }
   };
 
-  // Close dropdown when clicking outside
+  // Close on click outside
   useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
+    const handleClickOutside = (event: MouseEvent) => {
       if (
-        searchRef.current &&
-        !searchRef.current.contains(event.target as Node)
+        containerRef.current &&
+        !containerRef.current.contains(event.target as Node)
       ) {
         setIsOpen(false);
+        setSelectedIndex(-1);
       }
-    }
+    };
 
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   return (
-    <div ref={searchRef} className="w-full relative">
+    <div ref={containerRef} className="relative w-full">
       {/* Search Input */}
       <div className="relative">
-        <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+        <div className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none">
+          <Search className="w-5 h-5 text-gray-400" />
+        </div>
         <input
           ref={inputRef}
           type="text"
@@ -119,55 +134,59 @@ export function SearchBar() {
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={handleKeyDown}
           onFocus={() => {
-            if (results.length > 0) {
+            if (query.length > 0 && results.length > 0) {
               setIsOpen(true);
             }
           }}
-          className="w-full pl-12 pr-10 py-3 rounded-lg border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-zinc-900 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:border-blue-500 dark:focus:border-blue-400 transition"
+          className="w-full pl-12 pr-12 py-4 rounded-2xl bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md shadow-xl text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-blue-500/30 dark:focus:ring-blue-400/30 transition-shadow text-base"
+          autoComplete="off"
         />
         {query && (
           <button
-            onClick={() => {
-              setQuery("");
-              setResults([]);
-              setIsOpen(false);
-              inputRef.current?.focus();
-            }}
-            className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+            onClick={handleClear}
+            className="absolute right-4 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+            type="button"
           >
             <X className="w-5 h-5" />
           </button>
         )}
       </div>
 
-      {/* Dropdown Results */}
-      {isOpen && results.length > 0 && (
-        <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50 overflow-hidden">
-          {/* Loading state */}
-          {isLoading && (
-            <div className="p-4 text-center text-gray-500 dark:text-gray-400">
-              <div className="inline-block animate-spin">⏳</div>
-              <p className="mt-2">Searching...</p>
-            </div>
-          )}
-
-          {/* Results list */}
-          {!isLoading && (
-            <ul className="max-h-96 overflow-y-auto">
-              {results.map((result, index) => (
-                <li key={result.id}>
+      {/* Dropdown */}
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            ref={dropdownRef}
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.15, ease: "easeOut" }}
+            className="absolute left-1/2 -translate-x-1/2 top-full mt-2 w-[110%] bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl overflow-hidden border border-gray-200 dark:border-gray-800 z-9999"
+          >
+            {isLoading ? (
+              <div className="p-8 text-center">
+                <div className="inline-block w-6 h-6 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin" />
+                <p className="mt-3 text-sm text-gray-500 dark:text-gray-400">
+                  Searching...
+                </p>
+              </div>
+            ) : results.length > 0 ? (
+              <div className="max-h-[400px] overflow-y-auto">
+                {results.map((result, index) => (
                   <button
+                    key={result.id}
                     onClick={() => handleSelectResult(result)}
-                    onMouseEnter={() => setHighlightedIndex(index)}
-                    className={`w-full px-4 py-3 flex items-center gap-3 transition ${
-                      highlightedIndex === index
-                        ? "bg-blue-50 dark:bg-blue-900/20"
+                    onMouseEnter={() => setSelectedIndex(index)}
+                    onMouseLeave={() => setSelectedIndex(-1)}
+                    className={`w-full px-4 py-3 flex items-center gap-3 text-left transition-colors ${
+                      selectedIndex === index
+                        ? "bg-blue-50 dark:bg-blue-950"
                         : "hover:bg-gray-50 dark:hover:bg-gray-800"
                     }`}
+                    type="button"
                   >
-                    {/* Thumbnail */}
                     {result.image && (
-                      <div className="relative w-12 h-12 rounded shrink-0 bg-gray-200 dark:bg-gray-700 overflow-hidden">
+                      <div className="relative w-12 h-12 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-800 shrink-0">
                         <Image
                           src={result.image}
                           alt={result.title}
@@ -177,37 +196,31 @@ export function SearchBar() {
                         />
                       </div>
                     )}
-
-                    {/* Title */}
-                    <div className="flex-1 min-w-0 text-left">
-                      <p className="font-medium text-gray-900 dark:text-white truncate">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
                         {result.title}
                       </p>
                     </div>
-
-                    {/* Arrow indicator */}
-                    <span className="text-gray-400 shrink-0">→</span>
+                    <div className="shrink-0">
+                      <span className="text-gray-400 text-sm">→</span>
+                    </div>
                   </button>
-                </li>
-              ))}
-            </ul>
-          )}
-
-          {/* Empty state */}
-          {!isLoading && results.length === 0 && (
-            <div className="p-4 text-center text-gray-500 dark:text-gray-400">
-              No results found
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* No results message */}
-      {isOpen && !isLoading && results.length === 0 && query.length > 0 && (
-        <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50 p-4 text-center text-gray-500 dark:text-gray-400">
-          No products found matching &quot;{query}&quot;
-        </div>
-      )}
+                ))}
+              </div>
+            ) : (
+              <div className="p-8 text-center">
+                <p className="text-gray-600 dark:text-gray-400">
+                  No results found for{" "}
+                  <span className="font-semibold">&quot;{query}&quot;</span>
+                </p>
+                <p className="mt-1 text-sm text-gray-500 dark:text-gray-500">
+                  Try a different search term
+                </p>
+              </div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

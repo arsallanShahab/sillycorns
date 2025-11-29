@@ -32,8 +32,57 @@ async function initializePostsFile() {
   }
 }
 
-// Read all posts
-export async function getPosts(): Promise<Post[]> {
+// Read all posts with optional pagination
+export async function getPosts(
+  page?: number,
+  limit?: number,
+  sortBy?: "order" | "date" | "title",
+  statusFilter?: "all" | "active" | "inactive"
+): Promise<{ posts: Post[]; total: number; pages: number }> {
+  await initializePostsFile();
+  try {
+    const data = await fs.readFile(POSTS_FILE, "utf-8");
+    const parsed: PostsData = JSON.parse(data);
+    let posts = parsed.posts;
+
+    // Apply status filter
+    if (statusFilter === "active") {
+      posts = posts.filter((p) => p.active);
+    } else if (statusFilter === "inactive") {
+      posts = posts.filter((p) => !p.active);
+    }
+
+    // Apply sorting
+    if (sortBy === "date") {
+      posts.sort(
+        (a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+    } else if (sortBy === "title") {
+      posts.sort((a, b) => a.title.localeCompare(b.title));
+    } else {
+      posts.sort((a, b) => a.order - b.order);
+    }
+
+    const total = posts.length;
+
+    // Apply pagination if specified
+    if (page !== undefined && limit !== undefined) {
+      const startIndex = (page - 1) * limit;
+      posts = posts.slice(startIndex, startIndex + limit);
+      const pages = Math.ceil(total / limit);
+      return { posts, total, pages };
+    }
+
+    return { posts, total, pages: 1 };
+  } catch (error) {
+    console.error("Error reading posts:", error);
+    return { posts: [], total: 0, pages: 0 };
+  }
+}
+
+// Get all posts without pagination (for internal use)
+export async function getAllPosts(): Promise<Post[]> {
   await initializePostsFile();
   try {
     const data = await fs.readFile(POSTS_FILE, "utf-8");
@@ -50,7 +99,7 @@ export async function getActivePosts(
   skip: number = 0,
   limit: number = 20
 ): Promise<Post[]> {
-  const posts = await getPosts();
+  const posts = await getAllPosts();
   return posts
     .filter((post) => post.active)
     .sort(
@@ -62,7 +111,7 @@ export async function getActivePosts(
 
 // Get total active posts count
 export async function getActivePostsCount(): Promise<number> {
-  const posts = await getPosts();
+  const posts = await getAllPosts();
   return posts.filter((post) => post.active).length;
 }
 
@@ -71,7 +120,7 @@ export async function createPost(
   postData: Omit<Post, "id" | "createdAt" | "active" | "order">
 ): Promise<Post> {
   await initializePostsFile();
-  const posts = await getPosts();
+  const posts = await getAllPosts();
   const newPost: Post = {
     ...postData,
     id: Date.now().toString(),
@@ -90,7 +139,7 @@ export async function updatePost(
   updates: Partial<Post>
 ): Promise<Post | null> {
   await initializePostsFile();
-  const posts = await getPosts();
+  const posts = await getAllPosts();
   const index = posts.findIndex((p) => p.id === id);
   if (index === -1) return null;
 
@@ -103,23 +152,72 @@ export async function updatePost(
 // Delete a post
 export async function deletePost(id: string): Promise<boolean> {
   await initializePostsFile();
-  const posts = await getPosts();
-  const filtered = posts.filter((p) => p.id !== id);
-  if (filtered.length === posts.length) return false;
+  const posts = await getAllPosts();
+  const post = posts.find((p) => p.id === id);
+  if (!post) return false;
 
+  // Delete associated image if it exists
+  if (post.image) {
+    await deleteImage(post.image).catch(() => {});
+  }
+
+  const filtered = posts.filter((p) => p.id !== id);
   await savePostsData(filtered);
   return true;
 }
 
+// Bulk delete posts
+export async function bulkDeletePosts(
+  ids: string[]
+): Promise<{ success: boolean; deleted: number }> {
+  await initializePostsFile();
+  const posts = await getAllPosts();
+  const postsToDelete = posts.filter((p) => ids.includes(p.id));
+
+  // Delete associated images
+  await Promise.all(
+    postsToDelete.map((post) =>
+      post.image ? deleteImage(post.image).catch(() => {}) : Promise.resolve()
+    )
+  );
+
+  const filtered = posts.filter((p) => !ids.includes(p.id));
+  await savePostsData(filtered);
+  return { success: true, deleted: postsToDelete.length };
+}
+
 // Toggle post active status
 export async function togglePostStatus(id: string): Promise<Post | null> {
-  const posts = await getPosts();
+  const posts = await getAllPosts();
   const post = posts.find((p) => p.id === id);
   if (!post) return null;
 
   post.active = !post.active;
   await savePostsData(posts);
   return post;
+}
+
+// Bulk update posts status
+export async function bulkUpdatePostsStatus(
+  ids: string[],
+  active: boolean
+): Promise<{ success: boolean; updated: number }> {
+  await initializePostsFile();
+  const posts = await getAllPosts();
+  let updated = 0;
+
+  posts.forEach((post) => {
+    if (ids.includes(post.id)) {
+      post.active = active;
+      updated++;
+    }
+  });
+
+  if (updated > 0) {
+    await savePostsData(posts);
+  }
+
+  return { success: true, updated };
 }
 
 // Save posts data
@@ -256,7 +354,7 @@ export async function saveBackupFile(
 // Reorder posts
 export async function reorderPosts(postIds: string[]): Promise<boolean> {
   try {
-    const posts = await getPosts();
+    const { posts } = await getPosts();
 
     // Create a map of posts by id
     const postMap = new Map(posts.map((p) => [p.id, p]));

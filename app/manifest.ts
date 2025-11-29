@@ -2,10 +2,10 @@ import { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Sillycorns - Best Gadgets & Tech Products",
+    name: "Sillycorns Shop India - Best Gadgets & Tech Products",
     short_name: "Sillycorns",
     description:
-      "Discover the best gadgets and tech products with curated reviews and recommendations from Sillycorns",
+      "Sillycorns Shop India - Your destination for the best tech gadgets, product reviews, and exclusive deals in India. Shop Sillycorn for trending tech products updated hourly! Available worldwide.",
     start_url: "/",
     display: "standalone",
     background_color: "#ffffff",
@@ -21,11 +21,15 @@ export default function manifest(): MetadataRoute.Manifest {
       {
         src: "/og-image.jpeg",
         sizes: "1200x630",
-        type: "image/png",
+        type: "image/jpeg",
         form_factor: "wide",
       },
     ],
-    categories: ["shopping", "technology"],
+    categories: ["shopping", "technology", "lifestyle", "entertainment"],
     orientation: "portrait-primary",
+    lang: "en-US",
+    dir: "ltr",
+    scope: "/",
+    id: "sillycorns-shop",
   };
 }

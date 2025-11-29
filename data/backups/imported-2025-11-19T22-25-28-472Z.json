@@ -1,0 +1,14 @@
+{
+  "posts": [
+    {
+      "title": "Viral key chain gadget 3",
+      "image": "/images/posts/1763590444518-kuj1gb.jpg",
+      "yt_url": "https://www.youtube.com/shorts/Km8E5kKwmF8",
+      "product_url": "https://www.amazon.in/dp/B0F9DWVY3L?&linkCode=sl1&tag=sillycorns-21&linkId=2cb552c0e8a7f7fdffdb9edf3ea56be1&language=en_IN&ref_=as_li_ss_tl",
+      "id": "1763590444525",
+      "active": true,
+      "createdAt": "2025-11-19T22:14:04.525Z"
+    }
+  ],
+  "version": "1.0.0"
+}

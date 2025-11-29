@@ -1,18 +1,58 @@
 import { NextRequest, NextResponse } from "next/server";
-import {
-  getPosts,
-  createPost,
-  updatePost,
-  deletePost,
-  togglePostStatus,
-  saveImage,
-} from "@/lib/storage";
+import { getPosts, createPost, saveImage } from "@/lib/storage";
+import { POSTS_PER_PAGE } from "@/lib/constants";
 
-export async function GET() {
+// Disable caching for this route
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
+export async function GET(request: NextRequest) {
   try {
-    const posts = await getPosts();
-    return NextResponse.json(posts);
-  } catch (error) {
+    const { searchParams } = new URL(request.url);
+    const page = parseInt(searchParams.get("page") || "1");
+    const limit = parseInt(searchParams.get("limit") || String(POSTS_PER_PAGE));
+    const sortBy = (searchParams.get("sortBy") || "order") as
+      | "order"
+      | "date"
+      | "title";
+    const statusFilter = (searchParams.get("status") || "all") as
+      | "all"
+      | "active"
+      | "inactive";
+    const search = searchParams.get("search") || "";
+
+    const { posts, total, pages } = await getPosts(
+      page,
+      limit,
+      sortBy,
+      statusFilter
+    );
+
+    // Apply search filter if provided
+    let filteredPosts = posts;
+    if (search) {
+      filteredPosts = posts.filter((post) =>
+        post.title.toLowerCase().includes(search.toLowerCase())
+      );
+    }
+
+    return NextResponse.json(
+      {
+        posts: filteredPosts,
+        pagination: {
+          page,
+          limit,
+          total,
+          pages,
+        },
+      },
+      {
+        headers: {
+          "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+        },
+      }
+    );
+  } catch {
     return NextResponse.json(
       { error: "Failed to fetch posts" },
       { status: 500 }

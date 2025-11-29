@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getPosts } from "@/lib/storage";
+import { getAllPosts } from "@/lib/storage";
 
 export async function GET(request: NextRequest) {
   try {
@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json([]);
     }
 
-    const posts = await getPosts();
+    const posts = await getAllPosts();
     const activePublishedPosts = posts.filter((p) => p.active);
 
     const results = activePublishedPosts
