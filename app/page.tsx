@@ -2,14 +2,17 @@ import { PostsFeed } from "@/components/PostsFeed";
 import { SearchBar } from "@/components/SearchBar";
 import Image from "next/image";
 import type { Metadata } from "next";
-import { getActivePosts } from "@/lib/storage";
+import { getStaticPosts } from "@/lib/posts-client";
+import type { Post } from "@/lib/types";
 
-export const revalidate = 0; // Disable caching to ensure fresh content
-export const dynamic = "force-dynamic"; // Always generate dynamically
+export const revalidate = 3600; // Revalidate every hour
+export const dynamic = "force-static"; // Generate statically at build time
 
 export async function generateMetadata(): Promise<Metadata> {
   // Get latest posts for dynamic metadata
-  const latestPosts = await getActivePosts(0, 10);
+  let latestPosts = await getStaticPosts();
+  latestPosts = latestPosts.slice(0, 10);
+
   const postTitles = latestPosts
     .slice(0, 5)
     .map((p) => p.title)
@@ -93,7 +96,9 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function Home() {
-  const latestPosts = await getActivePosts(0, 20);
+  let latestPosts = await getStaticPosts();
+  latestPosts = latestPosts.slice(0, 20);
+
   const futureDate = new Date();
   futureDate.setDate(futureDate.getDate() + 30);
   const priceValidDate = futureDate.toISOString().split("T")[0];
@@ -178,27 +183,29 @@ export default async function Home() {
     description:
       "Trending gadgets and tech products from Sillycorns Shop India",
     numberOfItems: latestPosts.length,
-    itemListElement: latestPosts.slice(0, 10).map((post, index) => ({
-      "@type": "ListItem",
-      position: index + 1,
-      item: {
-        "@type": "Product",
-        name: post.title,
-        image: `https://sillycorn.vercel.app${post.image}`,
-        url: post.product_url,
-        description: `${post.title} - Recommended by Sillycorns`,
-        brand: {
-          "@type": "Brand",
-          name: "Sillycorns",
-        },
-        offers: {
-          "@type": "Offer",
+    itemListElement: latestPosts
+      .slice(0, 10)
+      .map((post: Post, index: number) => ({
+        "@type": "ListItem",
+        position: index + 1,
+        item: {
+          "@type": "Product",
+          name: post.title,
+          image: `https://sillycorn.vercel.app${post.image}`,
           url: post.product_url,
-          availability: "https://schema.org/InStock",
-          priceValidUntil: priceValidDate,
+          description: `${post.title} - Recommended by Sillycorns`,
+          brand: {
+            "@type": "Brand",
+            name: "Sillycorns",
+          },
+          offers: {
+            "@type": "Offer",
+            url: post.product_url,
+            availability: "https://schema.org/InStock",
+            priceValidUntil: priceValidDate,
+          },
         },
-      },
-    })),
+      })),
   };
 
   return (

@@ -22,9 +22,32 @@ export function PostsFeed() {
 
     setIsLoading(true);
     try {
+      // Try API endpoint first
       const response = await fetch(
-        `/api/posts/published?skip=${skip}&limit=${POSTS_PER_PAGE}`
+        `/api/posts/published?skip=${skip}&limit=${POSTS_PER_PAGE}`,
+        { cache: "no-store" }
       );
+
+      // If API fails, fallback to static posts.json
+      if (!response.ok) {
+        const staticResponse = await fetch("/posts.json", {
+          cache: "no-store",
+        });
+        if (staticResponse.ok) {
+          const data = await staticResponse.json();
+          const allPosts = (data.posts as Post[]).filter((p) => p.active);
+          const newPosts = allPosts.slice(skip, skip + POSTS_PER_PAGE);
+
+          if (newPosts.length === 0) {
+            setHasMore(false);
+          } else {
+            setPosts((prev) => [...prev, ...newPosts]);
+            setSkip((prev) => prev + newPosts.length);
+          }
+          setIsLoading(false);
+          return;
+        }
+      }
 
       if (response.ok) {
         const data = await response.json();
@@ -39,6 +62,26 @@ export function PostsFeed() {
       }
     } catch (error) {
       console.error("Failed to load posts:", error);
+      // Try static fallback on error
+      try {
+        const staticResponse = await fetch("/posts.json", {
+          cache: "no-store",
+        });
+        if (staticResponse.ok) {
+          const data = await staticResponse.json();
+          const allPosts = (data.posts as Post[]).filter((p) => p.active);
+          const newPosts = allPosts.slice(skip, skip + POSTS_PER_PAGE);
+
+          if (newPosts.length === 0) {
+            setHasMore(false);
+          } else {
+            setPosts((prev) => [...prev, ...newPosts]);
+            setSkip((prev) => prev + newPosts.length);
+          }
+        }
+      } catch (fallbackError) {
+        console.error("Fallback also failed:", fallbackError);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -47,6 +90,7 @@ export function PostsFeed() {
   // Initial load
   useEffect(() => {
     loadMorePosts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Intersection Observer for infinite scroll
@@ -97,6 +141,11 @@ export function PostsFeed() {
                       fill
                       className="object-cover transition-transform duration-700 group-hover:scale-110"
                       sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
+                      unoptimized={process.env.NODE_ENV === "development"}
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.style.display = "none";
+                      }}
                     />
                     {/* Gradient overlay */}
                     <div className="absolute inset-0 bg-linear-to-t from-black/60 via-black/0 to-black/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
