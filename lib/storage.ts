@@ -102,10 +102,7 @@ export async function getActivePosts(
   const posts = await getAllPosts();
   return posts
     .filter((post) => post.active)
-    .sort(
-      (a, b) =>
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    )
+    .sort((a, b) => a.order - b.order) // Sort by order field instead of date
     .slice(skip, skip + limit);
 }
 

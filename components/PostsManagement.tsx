@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Post } from "@/lib/types";
 import { POSTS_PER_PAGE } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
@@ -34,10 +34,13 @@ import {
   EyeOff,
   Search,
   Filter,
-  ImageIcon,
   Link as LinkIcon,
   Youtube,
   Plus,
+  ArrowUpDown,
+  MoveUp,
+  MoveDown,
+  Save,
 } from "lucide-react";
 import Image from "next/image";
 
@@ -66,6 +69,14 @@ export function PostsManagement({
     Record<string, string>
   >({});
 
+  // Reorder mode
+  const [isReorderMode, setIsReorderMode] = useState(false);
+  const [reorderPosts, setReorderPosts] = useState<Post[]>([]);
+  const [reorderLoading, setReorderLoading] = useState(false);
+  const [reorderDraggedItem, setReorderDraggedItem] = useState<number | null>(
+    null
+  );
+
   // Bulk operations
   const [selectedPosts, setSelectedPosts] = useState<Set<string>>(new Set());
 
@@ -81,7 +92,7 @@ export function PostsManagement({
   const [totalPages, setTotalPages] = useState(1);
 
   // Fetch posts from API with filters
-  const fetchPosts = async () => {
+  const fetchPosts = useCallback(async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams({
@@ -104,12 +115,12 @@ export function PostsManagement({
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentPage, sortBy, statusFilter, searchQuery]);
 
   // Fetch posts when filters change
   useEffect(() => {
     fetchPosts();
-  }, [currentPage, sortBy, statusFilter, searchQuery]);
+  }, [fetchPosts]);
 
   // Reset form
   const resetForm = () => {
@@ -456,6 +467,102 @@ export function PostsManagement({
     }
   };
 
+  // Open reorder mode
+  const openReorderMode = async () => {
+    setReorderLoading(true);
+    try {
+      // Fetch all posts (no pagination) for reordering
+      const response = await fetch("/api/posts?limit=1000&sortBy=order");
+      if (response.ok) {
+        const data = await response.json();
+        setReorderPosts(data.posts);
+        setIsReorderMode(true);
+      } else {
+        alert("Failed to load posts for reordering");
+      }
+    } catch {
+      alert("Failed to load posts for reordering");
+    } finally {
+      setReorderLoading(false);
+    }
+  };
+
+  // Move post up in reorder list
+  const movePostUp = (index: number) => {
+    if (index === 0) return;
+    const newPosts = [...reorderPosts];
+    [newPosts[index - 1], newPosts[index]] = [
+      newPosts[index],
+      newPosts[index - 1],
+    ];
+    setReorderPosts(newPosts);
+  };
+
+  // Move post down in reorder list
+  const movePostDown = (index: number) => {
+    if (index === reorderPosts.length - 1) return;
+    const newPosts = [...reorderPosts];
+    [newPosts[index], newPosts[index + 1]] = [
+      newPosts[index + 1],
+      newPosts[index],
+    ];
+    setReorderPosts(newPosts);
+  };
+
+  // Save reordered posts
+  const saveReorder = async () => {
+    setReorderLoading(true);
+    try {
+      const response = await fetch("/api/posts/reorder", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ postIds: reorderPosts.map((p) => p.id) }),
+      });
+
+      if (response.ok) {
+        setIsReorderMode(false);
+        await fetchPosts();
+        onPostsChange();
+        alert("Posts reordered successfully!");
+      } else {
+        alert("Failed to save reorder");
+      }
+    } catch {
+      alert("Failed to save reorder");
+    } finally {
+      setReorderLoading(false);
+    }
+  };
+
+  // Cancel reorder mode
+  const cancelReorder = () => {
+    setIsReorderMode(false);
+    setReorderPosts([]);
+  };
+
+  // Reorder dialog drag handlers
+  const handleReorderDragStart = (index: number) => {
+    setReorderDraggedItem(index);
+  };
+
+  const handleReorderDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
+  const handleReorderDrop = (targetIndex: number) => {
+    if (reorderDraggedItem === null || reorderDraggedItem === targetIndex) {
+      setReorderDraggedItem(null);
+      return;
+    }
+
+    const newPosts = [...reorderPosts];
+    const [movedPost] = newPosts.splice(reorderDraggedItem, 1);
+    newPosts.splice(targetIndex, 0, movedPost);
+
+    setReorderPosts(newPosts);
+    setReorderDraggedItem(null);
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -466,10 +573,26 @@ export function PostsManagement({
             Create and manage your product posts
           </p>
         </div>
-        <Button onClick={() => setIsCreating(true)} size="lg" className="gap-2">
-          <Plus className="w-4 h-4" />
-          Create New Post
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            onClick={openReorderMode}
+            variant="outline"
+            size="lg"
+            className="gap-2"
+            disabled={reorderLoading || totalPosts === 0}
+          >
+            <ArrowUpDown className="w-4 h-4" />
+            Reorder Posts
+          </Button>
+          <Button
+            onClick={() => setIsCreating(true)}
+            size="lg"
+            className="gap-2"
+          >
+            <Plus className="w-4 h-4" />
+            Create New Post
+          </Button>
+        </div>
       </div>
 
       {/* Create Form Dialog */}
@@ -764,6 +887,131 @@ export function PostsManagement({
                 Cancel
               </Button>
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reorder Dialog */}
+      <Dialog
+        open={isReorderMode}
+        onOpenChange={(open) => !open && cancelReorder()}
+      >
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="text-2xl flex items-center gap-2">
+              <ArrowUpDown className="w-6 h-6" />
+              Reorder Posts
+            </DialogTitle>
+            <p className="text-sm text-gray-500">
+              Drag posts to reorder them or use the up/down buttons. Changes
+              will be saved when you click &ldquo;Save Order&rdquo;.
+            </p>
+          </DialogHeader>
+
+          <div className="flex-1 overflow-y-auto pr-2 space-y-2 py-4">
+            {reorderPosts.map((post, index) => (
+              <Card
+                key={post.id}
+                draggable
+                onDragStart={() => handleReorderDragStart(index)}
+                onDragOver={handleReorderDragOver}
+                onDrop={() => handleReorderDrop(index)}
+                className={`p-4 hover:border-gray-300 transition-all cursor-move ${
+                  reorderDraggedItem === index
+                    ? "opacity-50 border-2 border-blue-500"
+                    : ""
+                }`}
+              >
+                <div className="flex items-center gap-4">
+                  {/* Drag Handle */}
+                  <GripVertical className="w-5 h-5 text-gray-400 shrink-0" />
+
+                  {/* Order Number */}
+                  <div className="flex items-center justify-center w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-800 font-semibold text-sm shrink-0">
+                    {index + 1}
+                  </div>
+
+                  {/* Image Preview */}
+                  <div className="relative w-16 h-16 bg-gray-200 dark:bg-gray-800 rounded overflow-hidden shrink-0">
+                    {post.image && (
+                      <Image
+                        src={post.image}
+                        alt={post.title}
+                        fill
+                        className="object-cover"
+                      />
+                    )}
+                  </div>
+
+                  {/* Post Info */}
+                  <div className="flex-1 min-w-0">
+                    <h4 className="font-medium truncate">{post.title}</h4>
+                    <div className="flex flex-wrap gap-2 mt-1">
+                      <Badge
+                        variant={post.active ? "default" : "secondary"}
+                        className="text-xs"
+                      >
+                        {post.active ? "Active" : "Inactive"}
+                      </Badge>
+                    </div>
+                  </div>
+
+                  {/* Move Buttons */}
+                  <div className="flex flex-col gap-1 shrink-0">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => movePostUp(index)}
+                      disabled={index === 0}
+                      className="h-8 w-8 p-0"
+                      title="Move up"
+                    >
+                      <MoveUp className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => movePostDown(index)}
+                      disabled={index === reorderPosts.length - 1}
+                      className="h-8 w-8 p-0"
+                      title="Move down"
+                    >
+                      <MoveDown className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex gap-3 pt-4 border-t">
+            <Button
+              onClick={saveReorder}
+              disabled={reorderLoading}
+              className="flex-1"
+              size="lg"
+            >
+              {reorderLoading ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Save className="w-4 h-4 mr-2" />
+                  Save Order
+                </>
+              )}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={cancelReorder}
+              disabled={reorderLoading}
+              size="lg"
+            >
+              Cancel
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
